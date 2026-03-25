@@ -1,8 +1,4 @@
 # ── MedBook CI/CD Pipeline ────────────────────────────────────────────────────
-# Runs on every push to main branch
-# 1. Checks code syntax
-# 2. SSHs into your EC2 server and redeploys
-
 name: MedBook CI/CD
 
 on:
@@ -10,7 +6,6 @@ on:
     branches: [main]
 
 jobs:
-
   # ── Job 1: Syntax check ────────────────────────────────────────────────────
   test:
     name: Check Code
@@ -24,10 +19,15 @@ jobs:
           python-version: '3.11'
 
       - name: Install dependencies
-        run: pip install -r backend/requirements.txt
+        run: |
+          if [ -f backend/requirements.txt ]; then
+            pip install -r backend/requirements.txt
+          fi
 
       - name: Check Python syntax
         run: |
+          # Only check if files exist to avoid errors
+          shopt -s nullglob
           for f in backend/*.py backend/routers/*.py; do
             python -m py_compile "$f" && echo "OK: $f"
           done
@@ -36,18 +36,24 @@ jobs:
   deploy:
     name: Deploy to EC2
     runs-on: ubuntu-latest
-    needs: test          # only runs if test job passes
+    needs: test  # Only runs if test job passes
     steps:
       - name: SSH into server and redeploy
         uses: appleboy/ssh-action@v1
         with:
-          host: ${{ secrets.SERVER_HOST }}      # your EC2 public IP
-          username: ${{ secrets.SERVER_USER }}  # ubuntu
-          key: ${{ secrets.SERVER_SSH_KEY }}    # contents of your .pem file
+          # UPDATED: These must match exactly what you typed in GitHub Secrets
+          host: ${{ secrets.PROD_HOST }}
+          username: ${{ secrets.PROD_USER }}
+          key: ${{ secrets.PROD_SSH_KEY }}
+          port: 22
           script: |
-            cd /opt/medbook
+            # Navigate to the correct folder we set up earlier
+            cd /home/ec2-user/medbook
+            
+            # Pull latest code
             git pull origin main
-            source .venv/bin/activate
-            pip install -r backend/requirements.txt --quiet
-            sudo systemctl restart medbook
-            echo "Deployed at $(date)"
+            
+            # Use the deployment script we optimized for Amazon Linux
+            bash deploy.sh
+            
+            echo "Successfully deployed to Amazon Linux at $(date)"
