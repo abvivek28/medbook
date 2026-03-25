@@ -1,0 +1,27 @@
+# Environment — never push real secrets
+.env
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+*.egg-info/
+
+# Database — don't push local data
+*.db
+*.sqlite3
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+
+# Terraform state (contains sensitive info)
+terraform/*.tfstate
+terraform/*.tfstate.backup
+terraform/.terraform/

@@ -1,0 +1,53 @@
+# ── MedBook CI/CD Pipeline ────────────────────────────────────────────────────
+# Runs on every push to main branch
+# 1. Checks code syntax
+# 2. SSHs into your EC2 server and redeploys
+
+name: MedBook CI/CD
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+
+  # ── Job 1: Syntax check ────────────────────────────────────────────────────
+  test:
+    name: Check Code
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install -r backend/requirements.txt
+
+      - name: Check Python syntax
+        run: |
+          for f in backend/*.py backend/routers/*.py; do
+            python -m py_compile "$f" && echo "OK: $f"
+          done
+
+  # ── Job 2: Deploy to server ────────────────────────────────────────────────
+  deploy:
+    name: Deploy to EC2
+    runs-on: ubuntu-latest
+    needs: test          # only runs if test job passes
+    steps:
+      - name: SSH into server and redeploy
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.SERVER_HOST }}      # your EC2 public IP
+          username: ${{ secrets.SERVER_USER }}  # ubuntu
+          key: ${{ secrets.SERVER_SSH_KEY }}    # contents of your .pem file
+          script: |
+            cd /opt/medbook
+            git pull origin main
+            source .venv/bin/activate
+            pip install -r backend/requirements.txt --quiet
+            sudo systemctl restart medbook
+            echo "Deployed at $(date)"

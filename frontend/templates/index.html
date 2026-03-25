@@ -1,0 +1,484 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MedBook — Doctor Appointment Platform</title>
+  <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+
+<!-- ═══════ NAV ═══════ -->
+<nav>
+  <a class="nav-brand" href="#" onclick="showPage('home');return false">🩺 <span>Med</span>Book</a>
+  <div class="nav-links" id="nav-guest">
+    <a href="#" onclick="showPage('search');return false">Find Doctors</a>
+    <button onclick="openModal('modal-login')">Log In</button>
+    <button class="btn-nav-primary" onclick="openModal('modal-register')">Sign Up</button>
+  </div>
+  <div class="nav-links" id="nav-auth" style="display:none">
+    <a href="#" onclick="showPage('search');return false">Find Doctors</a>
+    <a href="#" id="nav-patients-link" style="display:none" onclick="showPage('doctor-patients');return false">My Patients</a>
+    <span id="nav-user-name" style="color:var(--teal-light);font-weight:600"></span>
+    <a href="#" id="nav-dashboard-link">Dashboard</a>
+    <a href="#" onclick="showPage('profile');return false">Profile</a>
+    <button onclick="logout()">Log Out</button>
+  </div>
+</nav>
+
+<!-- ═══════ HOME ═══════ -->
+<div class="page active" id="page-home">
+  <div class="hero">
+    <h1>Your health,<br><em>beautifully managed</em></h1>
+    <p>Find the right doctor, book appointments instantly, and keep your health records in one place.</p>
+    <div class="hero-actions">
+      <button class="btn btn-primary btn-lg" onclick="showPage('search')">🔍 Find a Doctor</button>
+      <button class="btn btn-outline btn-lg" onclick="openModal('modal-register')">Register as Doctor</button>
+    </div>
+  </div>
+  <div class="features">
+    <div class="feature-card"><div class="icon">🔍</div><h3>Search & Discover</h3><p>Find doctors by name or specialization. View profiles, qualifications, and patient reviews before booking.</p></div>
+    <div class="feature-card"><div class="icon">🗓</div><h3>Instant Booking</h3><p>See real-time slot availability and confirm an appointment in seconds with instant confirmation.</p></div>
+    <div class="feature-card"><div class="icon">💊</div><h3>Prescriptions & Notes</h3><p>Doctors add consultation notes and prescriptions after each visit. Patients can view and print them any time.</p></div>
+    <div class="feature-card"><div class="icon">⭐</div><h3>Verified Reviews</h3><p>Only patients with completed appointments can review, ensuring authentic and trustworthy feedback.</p></div>
+    <div class="feature-card"><div class="icon">📋</div><h3>Patient Profiles</h3><p>Doctors see patient health info — blood group, allergies, and history — right at the point of care.</p></div>
+    <div class="feature-card"><div class="icon">📊</div><h3>Doctor Dashboard</h3><p>Manage your schedule, track daily appointments, generate bulk or recurring weekly slots, and view earnings.</p></div>
+  </div>
+</div>
+
+<!-- ═══════ SEARCH ═══════ -->
+<div class="page" id="page-search">
+  <div class="container">
+    <div class="section-header"><h2>Find a Doctor</h2><p>Search by name or specialization</p></div>
+    <div class="search-bar" style="max-width:640px;margin-bottom:2rem">
+      <span>🔍</span>
+      <input type="text" id="search-input" placeholder="Search by doctor name…">
+      <select id="search-spec-filter" onchange="doSearch(document.getElementById('search-input').value, this.value)">
+        <option value="">All Specializations</option>
+      </select>
+      <button class="btn btn-primary btn-sm" onclick="doSearch(document.getElementById('search-input').value, document.getElementById('search-spec-filter').value)">Search</button>
+    </div>
+    <div class="doctors-grid" id="doctors-grid">
+      <div class="empty-state"><div class="spinner"></div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════ DOCTOR PUBLIC PROFILE ═══════ -->
+<div class="page" id="page-doctor-public">
+  <div class="container-sm" style="padding-top:2rem">
+    <button class="btn btn-secondary btn-sm" onclick="showPage('search')" style="margin-bottom:1.5rem">← Back to Search</button>
+    <div class="card" id="doctor-public-content"><div class="empty-state" style="padding:3rem"><div class="spinner"></div></div></div>
+  </div>
+</div>
+
+<!-- ═══════ DOCTOR DASHBOARD ═══════ -->
+<div class="page" id="page-doctor-dashboard">
+  <div class="container">
+    <div class="section-header"><h2>Doctor Dashboard</h2><p>Manage your schedule, slots, and appointments</p></div>
+
+    <div class="stats-grid" style="grid-template-columns:repeat(auto-fit,minmax(140px,1fr))">
+      <div class="stat-card"><div class="stat-num" id="doc-stat-total">—</div><div class="stat-label">Total Appointments</div></div>
+      <div class="stat-card teal"><div class="stat-num" id="doc-stat-today">—</div><div class="stat-label">Today (confirmed)</div></div>
+      <div class="stat-card"><div class="stat-num" id="doc-stat-pending">—</div><div class="stat-label">All Pending</div></div>
+      <div class="stat-card"><div class="stat-num" id="doc-stat-completed">—</div><div class="stat-label">Completed</div></div>
+      <div class="stat-card"><div class="stat-num" id="doc-stat-slots">—</div><div class="stat-label">Free Slots</div></div>
+      <div class="stat-card" style="border-color:var(--teal-pale)"><div class="stat-num" style="color:var(--green)" id="doc-stat-revenue">—</div><div class="stat-label">Est. Revenue</div></div>
+    </div>
+
+    <div class="two-col">
+      <!-- Left: Appointments -->
+      <div>
+        <div class="card">
+          <div class="card-header" style="flex-wrap:wrap;gap:0.75rem">
+            <span class="card-title">Appointments</span>
+            <div style="display:flex;gap:0.25rem" id="appt-filter-tabs">
+              <button class="tab-btn active" data-filter="all"       onclick="applyDocApptFilter('all',this)">All</button>
+              <button class="tab-btn"        data-filter="confirmed" onclick="applyDocApptFilter('confirmed',this)">Upcoming</button>
+              <button class="tab-btn"        data-filter="completed" onclick="applyDocApptFilter('completed',this)">Done</button>
+              <button class="tab-btn"        data-filter="cancelled" onclick="applyDocApptFilter('cancelled',this)">Cancelled</button>
+            </div>
+          </div>
+          <div style="padding:0.75rem 1rem;border-bottom:1px solid var(--gray-100)">
+            <input type="text" id="appt-search-input" class="form-control" placeholder="Search by patient name…"
+              style="font-size:0.85rem;padding:0.4rem 0.75rem" oninput="filterApptByName(this.value)">
+          </div>
+          <div class="card-body" style="padding:0.75rem;max-height:600px;overflow-y:auto">
+            <div id="doc-appointments-list" style="display:flex;flex-direction:column;gap:0.5rem">
+              <div class="empty-state"><div class="spinner"></div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right: Slot management -->
+      <div>
+        <div class="card" style="margin-bottom:1.25rem">
+          <div class="card-header"><span class="card-title">Generate Slots</span></div>
+          <div class="card-body">
+            <!-- Slot mode tabs -->
+            <div class="tabs" id="slot-tabs" style="margin-bottom:1rem">
+              <button class="tab-btn active" data-tab="single" onclick="switchSlotTab('single')">Single Day</button>
+              <button class="tab-btn"        data-tab="weekly" onclick="switchSlotTab('weekly')">Weekly Recurring</button>
+            </div>
+
+            <!-- Single day -->
+            <div id="slot-form-single">
+              <div class="form-row">
+                <div class="form-group">
+                  <label class="form-label">Date</label>
+                  <input type="date" id="slot-date" class="form-control">
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Slot Duration</label>
+                  <select id="slot-duration" class="form-control">
+                    <option value="15">15 min</option><option value="20">20 min</option>
+                    <option value="30" selected>30 min</option><option value="45">45 min</option><option value="60">60 min</option>
+                  </select>
+                </div>
+              </div>
+              <div class="form-row">
+                <div class="form-group"><label class="form-label">Start Time</label><input type="time" id="slot-start" class="form-control" value="09:00"></div>
+                <div class="form-group"><label class="form-label">End Time</label><input type="time" id="slot-end" class="form-control" value="17:00"></div>
+              </div>
+              <button id="btn-gen-slots" class="btn btn-primary" onclick="addBulkSlots()">⚡ Generate Slots</button>
+              <p style="font-size:0.75rem;color:var(--gray-400);margin-top:0.5rem">Slots auto-generated at selected interval between start and end time.</p>
+            </div>
+
+            <!-- Weekly recurring -->
+            <div id="slot-form-weekly" style="display:none">
+              <div class="form-group">
+                <label class="form-label">Days of the week</label>
+                <div style="display:flex;gap:0.4rem;flex-wrap:wrap;margin-top:0.4rem" id="weekly-days-container">
+                  <label class="day-check"><input type="checkbox" value="0"> Mon</label>
+                  <label class="day-check"><input type="checkbox" value="1"> Tue</label>
+                  <label class="day-check"><input type="checkbox" value="2"> Wed</label>
+                  <label class="day-check"><input type="checkbox" value="3"> Thu</label>
+                  <label class="day-check"><input type="checkbox" value="4"> Fri</label>
+                  <label class="day-check"><input type="checkbox" value="5"> Sat</label>
+                  <label class="day-check"><input type="checkbox" value="6"> Sun</label>
+                </div>
+              </div>
+              <div class="form-row">
+                <div class="form-group"><label class="form-label">Start Time</label><input type="time" id="weekly-start" class="form-control" value="09:00"></div>
+                <div class="form-group"><label class="form-label">End Time</label><input type="time" id="weekly-end" class="form-control" value="17:00"></div>
+              </div>
+              <div class="form-row">
+                <div class="form-group">
+                  <label class="form-label">Slot Duration</label>
+                  <select id="weekly-duration" class="form-control">
+                    <option value="15">15 min</option><option value="20">20 min</option>
+                    <option value="30" selected>30 min</option><option value="45">45 min</option><option value="60">60 min</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Repeat for</label>
+                  <select id="weekly-weeks" class="form-control">
+                    <option value="1">1 week</option><option value="2">2 weeks</option>
+                    <option value="4" selected>4 weeks</option><option value="8">8 weeks</option><option value="12">12 weeks</option>
+                  </select>
+                </div>
+              </div>
+              <button class="btn btn-primary" onclick="addWeeklySlots()">🔄 Generate Recurring Slots</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title">Upcoming Slots</span>
+            <button class="btn btn-secondary btn-sm" onclick="renderDoctorSlots()">↻ Refresh</button>
+          </div>
+          <div class="card-body" style="max-height:400px;overflow-y:auto"><div id="doc-slots-list"></div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════ DOCTOR PATIENTS ═══════ -->
+<div class="page" id="page-doctor-patients">
+  <div class="container">
+    <div class="section-header"><h2>My Patients</h2><p>All patients who have had appointments with you</p></div>
+    <div id="doctor-patients-content"><div class="empty-state"><div class="spinner"></div></div></div>
+  </div>
+</div>
+
+<!-- ═══════ PATIENT APPOINTMENTS ═══════ -->
+<div class="page" id="page-patient-appointments">
+  <div class="container-sm">
+    <div class="section-header" style="display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:1rem">
+      <div><h2>My Appointments</h2><p>Upcoming and past visits</p></div>
+      <button class="btn btn-primary" onclick="showPage('search')">+ Book Appointment</button>
+    </div>
+    <div id="patient-appts-list"><div class="empty-state"><div class="spinner"></div></div></div>
+  </div>
+</div>
+
+<!-- ═══════ PROFILE ═══════ -->
+<div class="page" id="page-profile">
+  <div class="container-sm">
+    <div class="card" style="overflow:hidden">
+      <div class="profile-header">
+        <div class="profile-avatar-lg" id="profile-avatar">?</div>
+        <div><h2 id="profile-name-display">Your Name</h2><p id="profile-role-display">Role</p></div>
+      </div>
+      <form id="profile-form" onsubmit="event.preventDefault();saveProfile()">
+        <div class="card-body">
+          <h4 style="font-weight:600;color:var(--navy);margin-bottom:1rem">Personal Information</h4>
+          <div class="form-row">
+            <div class="form-group"><label class="form-label">Full Name</label><input type="text" id="pf-name" class="form-control"></div>
+            <div class="form-group"><label class="form-label">Phone</label><input type="tel" id="pf-phone" class="form-control"></div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Email <small style="color:var(--gray-400)">(read-only)</small></label>
+            <input type="email" id="pf-email" class="form-control" readonly style="background:var(--gray-50);cursor:not-allowed">
+          </div>
+
+          <div id="profile-doctor-section" style="display:none">
+            <div class="divider"></div>
+            <h4 style="font-weight:600;color:var(--navy);margin-bottom:1rem">Professional Information</h4>
+            <div class="form-row">
+              <div class="form-group"><label class="form-label">Specialization</label><input type="text" id="pf-specialization" class="form-control" placeholder="e.g. Cardiologist"></div>
+              <div class="form-group"><label class="form-label">Qualification</label><input type="text" id="pf-qualification" class="form-control" placeholder="e.g. MBBS, MD"></div>
+            </div>
+            <div class="form-row">
+              <div class="form-group"><label class="form-label">Years of Experience</label><input type="number" id="pf-experience_years" class="form-control" min="0"></div>
+              <div class="form-group"><label class="form-label">Consultation Fee (₹)</label><input type="number" id="pf-consultation_fee" class="form-control" min="0"></div>
+            </div>
+            <div class="form-row">
+              <div class="form-group"><label class="form-label">Clinic Name</label><input type="text" id="pf-clinic_name" class="form-control"></div>
+              <div class="form-group">
+                <label class="form-label">Default Slot Duration</label>
+                <select id="pf-slot_duration_mins" class="form-control">
+                  <option value="15">15 min</option><option value="20">20 min</option><option value="30">30 min</option><option value="45">45 min</option><option value="60">60 min</option>
+                </select>
+              </div>
+            </div>
+            <div class="form-group"><label class="form-label">Clinic Address</label><input type="text" id="pf-clinic_address" class="form-control"></div>
+            <div class="form-group">
+              <label class="form-label">Available Days <small style="color:var(--gray-400)">(e.g. Mon,Tue,Wed,Thu,Fri)</small></label>
+              <input type="text" id="pf-available_days" class="form-control" placeholder="Mon,Tue,Wed,Thu,Fri">
+            </div>
+            <div class="form-group"><label class="form-label">Bio / About</label><textarea id="pf-bio" class="form-control" rows="4" placeholder="Brief description of your expertise and approach…"></textarea></div>
+          </div>
+
+          <div id="profile-patient-section" style="display:none">
+            <div class="divider"></div>
+            <h4 style="font-weight:600;color:var(--navy);margin-bottom:1rem">Health Information</h4>
+            <div class="form-row">
+              <div class="form-group"><label class="form-label">Age</label><input type="number" id="pf-age" class="form-control" min="0" max="150"></div>
+              <div class="form-group">
+                <label class="form-label">Gender</label>
+                <select id="pf-gender" class="form-control"><option value="">Select</option><option>Male</option><option>Female</option><option>Other</option></select>
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label class="form-label">Blood Group</label>
+                <select id="pf-blood_group" class="form-control">
+                  <option value="">Select</option><option>A+</option><option>A-</option><option>B+</option><option>B-</option><option>O+</option><option>O-</option><option>AB+</option><option>AB-</option>
+                </select>
+              </div>
+              <div class="form-group"><label class="form-label">Emergency Contact</label><input type="tel" id="pf-emergency_contact" class="form-control" placeholder="+91 98765 43210"></div>
+            </div>
+            <div class="form-group"><label class="form-label">Known Allergies</label><textarea id="pf-allergies" class="form-control" rows="2" placeholder="e.g. Penicillin, Pollen, Nuts…"></textarea></div>
+            <div class="form-group"><label class="form-label">Medical History</label><textarea id="pf-medical_history" class="form-control" rows="3" placeholder="Previous conditions, surgeries, ongoing treatments…"></textarea></div>
+          </div>
+        </div>
+        <div style="padding:1rem 1.5rem;border-top:1px solid var(--gray-100);display:flex;justify-content:flex-end;gap:0.75rem">
+          <button type="submit" id="btn-save-profile" class="btn btn-primary">Save Changes</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+
+<!-- ════════════════ MODALS ════════════════ -->
+
+<!-- Login -->
+<div class="modal-overlay" id="modal-login">
+  <div class="modal">
+    <div class="modal-header"><h3>Welcome back</h3><button class="modal-close" onclick="closeModal('modal-login')">×</button></div>
+    <div class="modal-body">
+      <div id="login-error" class="alert alert-error" style="display:none"></div>
+      <div class="form-group"><label class="form-label">Email</label><input type="email" id="login-email" class="form-control" placeholder="you@example.com" autocomplete="email"></div>
+      <div class="form-group"><label class="form-label">Password</label><input type="password" id="login-password" class="form-control" placeholder="••••••••" autocomplete="current-password"></div>
+      <p style="font-size:0.8rem;color:var(--gray-400);margin-top:0.5rem">Don't have an account? <a href="#" onclick="closeModal('modal-login');openModal('modal-register');return false" style="color:var(--teal)">Sign up</a></p>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('modal-login')">Cancel</button>
+      <button id="btn-login" class="btn btn-primary" onclick="doLogin()">Log In</button>
+    </div>
+  </div>
+</div>
+
+<!-- Register -->
+<div class="modal-overlay" id="modal-register">
+  <div class="modal">
+    <div class="modal-header"><h3>Create your account</h3><button class="modal-close" onclick="closeModal('modal-register')">×</button></div>
+    <div class="modal-body">
+      <div id="reg-error" style="color:var(--red);font-size:0.85rem;margin-bottom:0.75rem;min-height:1.2em"></div>
+      <div style="display:flex;gap:1.5rem;margin-bottom:1.25rem">
+        <label style="display:flex;align-items:center;gap:0.4rem;cursor:pointer;font-size:0.9rem"><input type="radio" name="reg-role" value="patient" onchange="toggleRegRole('patient')" checked> 🧑 I'm a Patient</label>
+        <label style="display:flex;align-items:center;gap:0.4rem;cursor:pointer;font-size:0.9rem"><input type="radio" name="reg-role" value="doctor" onchange="toggleRegRole('doctor')"> 👨‍⚕️ I'm a Doctor</label>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">Full Name</label><input type="text" id="reg-name" class="form-control" placeholder="Jane Smith"></div>
+        <div class="form-group"><label class="form-label">Phone</label><input type="tel" id="reg-phone" class="form-control" placeholder="+91 98765 43210"></div>
+      </div>
+      <div class="form-group"><label class="form-label">Email</label><input type="email" id="reg-email" class="form-control" placeholder="you@example.com"></div>
+      <div class="form-group"><label class="form-label">Password</label><input type="password" id="reg-password" class="form-control" placeholder="Min 6 characters"></div>
+      <div id="reg-doctor-fields" style="display:none">
+        <div class="divider"></div>
+        <div class="form-row">
+          <div class="form-group"><label class="form-label">Specialization</label><input type="text" id="reg-specialization" class="form-control" placeholder="e.g. Cardiologist"></div>
+          <div class="form-group"><label class="form-label">Qualification</label><input type="text" id="reg-qualification" class="form-control" placeholder="MBBS, MD"></div>
+        </div>
+        <div class="form-row">
+          <div class="form-group"><label class="form-label">Experience (years)</label><input type="number" id="reg-experience" class="form-control" placeholder="5" min="0"></div>
+          <div class="form-group"><label class="form-label">Consultation Fee (₹)</label><input type="number" id="reg-fee" class="form-control" placeholder="500" min="0"></div>
+        </div>
+        <div class="form-group"><label class="form-label">Clinic Name</label><input type="text" id="reg-clinic" class="form-control" placeholder="City Health Clinic"></div>
+      </div>
+      <div id="reg-patient-fields">
+        <div class="divider"></div>
+        <div class="form-row">
+          <div class="form-group"><label class="form-label">Age</label><input type="number" id="reg-age" class="form-control" placeholder="28" min="0"></div>
+          <div class="form-group">
+            <label class="form-label">Gender</label>
+            <select id="reg-gender" class="form-control"><option value="">Select</option><option>Male</option><option>Female</option><option>Other</option></select>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Blood Group</label>
+          <select id="reg-blood" class="form-control">
+            <option value="">Select</option><option>A+</option><option>A-</option><option>B+</option><option>B-</option><option>O+</option><option>O-</option><option>AB+</option><option>AB-</option>
+          </select>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('modal-register')">Cancel</button>
+      <button id="btn-register" class="btn btn-primary" onclick="doRegister()">Create Account</button>
+    </div>
+  </div>
+</div>
+
+<!-- Book Appointment -->
+<div class="modal-overlay" id="modal-book">
+  <div class="modal">
+    <div class="modal-header"><h3>Book Appointment</h3><button class="modal-close" onclick="closeModal('modal-book')">×</button></div>
+    <div class="modal-body">
+      <div class="alert alert-info" id="book-slot-info" style="font-weight:500"></div>
+      <div class="form-group" style="margin-top:0.5rem">
+        <label class="form-label">Reason for visit <small style="color:var(--gray-400)">(optional)</small></label>
+        <textarea id="book-reason" class="form-control" rows="3" placeholder="Briefly describe your symptoms or reason for visit…"></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('modal-book')">Cancel</button>
+      <button id="btn-confirm-booking" class="btn btn-primary" onclick="confirmBooking()">Confirm Booking</button>
+    </div>
+  </div>
+</div>
+
+<!-- Appointment Notes (Doctor) -->
+<div class="modal-overlay" id="modal-appt-notes">
+  <div class="modal">
+    <div class="modal-header"><h3>Consultation Notes</h3><button class="modal-close" onclick="closeModal('modal-appt-notes')">×</button></div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label class="form-label">Clinical Notes</label>
+        <textarea id="appt-notes-input" class="form-control" rows="4" placeholder="Examination findings, diagnosis, follow-up advice…"></textarea>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Prescription</label>
+        <textarea id="appt-prescription-input" class="form-control" rows="5" placeholder="Drug name, dosage, frequency, duration…&#10;e.g. Amoxicillin 500mg – 1 tab 3×/day for 5 days"></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('modal-appt-notes')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveApptNotes()">Save Notes</button>
+    </div>
+  </div>
+</div>
+
+<!-- Review -->
+<div class="modal-overlay" id="modal-review">
+  <div class="modal">
+    <div class="modal-header"><h3>Rate your experience</h3><button class="modal-close" onclick="closeModal('modal-review')">×</button></div>
+    <div class="modal-body">
+      <p style="color:var(--gray-600);font-size:0.875rem;margin-bottom:1rem">Your review helps other patients make informed decisions.</p>
+      <div class="star-input" style="justify-content:center;margin-bottom:1.25rem" id="review-stars">
+        <input type="radio" name="review-star" id="s5" value="5"><label for="s5">★</label>
+        <input type="radio" name="review-star" id="s4" value="4"><label for="s4">★</label>
+        <input type="radio" name="review-star" id="s3" value="3"><label for="s3">★</label>
+        <input type="radio" name="review-star" id="s2" value="2"><label for="s2">★</label>
+        <input type="radio" name="review-star" id="s1" value="1"><label for="s1">★</label>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Comments <small style="color:var(--gray-400)">(optional)</small></label>
+        <textarea id="review-comment" class="form-control" rows="3" placeholder="How was the consultation? Would you recommend this doctor?"></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('modal-review')">Skip</button>
+      <button class="btn btn-primary" onclick="submitReview()">Submit Review</button>
+    </div>
+  </div>
+</div>
+
+<!-- Prescription / Consultation Detail -->
+<div class="modal-overlay" id="modal-prescription">
+  <div class="modal">
+    <div class="modal-header"><h3>📋 Consultation Summary</h3><button class="modal-close" onclick="closeModal('modal-prescription')">×</button></div>
+    <div class="modal-body">
+      <div style="display:flex;gap:1.5rem;margin-bottom:1.25rem;font-size:0.875rem;color:var(--gray-600)">
+        <div>👨‍⚕️ <strong id="rx-doctor-name"></strong></div>
+        <div>📅 <span id="rx-date"></span></div>
+      </div>
+      <div id="notes-row-in-rx">
+        <label class="form-label" style="margin-bottom:0.4rem">Clinical Notes</label>
+        <pre id="notes-in-rx" style="white-space:pre-wrap;font-family:inherit;font-size:0.875rem;line-height:1.6;background:var(--gray-50);padding:0.85rem;border-radius:8px;margin-bottom:1rem;color:var(--gray-600)"></pre>
+      </div>
+      <label class="form-label" style="margin-bottom:0.4rem">Prescription</label>
+      <pre id="prescription-text" style="white-space:pre-wrap;font-family:inherit;font-size:0.875rem;line-height:1.7;background:var(--teal-pale);padding:0.85rem;border-radius:8px;color:var(--navy)"></pre>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="printSummary()">🖨 Print</button>
+      <button class="btn btn-primary" onclick="closeModal('modal-prescription')">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- Patient Detail (Doctor view) -->
+<div class="modal-overlay" id="modal-patient-detail">
+  <div class="modal" style="max-width:600px">
+    <div class="modal-header"><h3>Patient Details</h3><button class="modal-close" onclick="closeModal('modal-patient-detail')">×</button></div>
+    <div class="modal-body" id="patient-detail-content">
+      <div style="text-align:center;padding:2rem"><div class="spinner" style="margin:0 auto"></div></div>
+    </div>
+    <div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal('modal-patient-detail')">Close</button></div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div id="toast"></div>
+
+<style>
+.day-check {
+  display:inline-flex;align-items:center;gap:0.3rem;
+  padding:0.3rem 0.65rem;border:1.5px solid var(--gray-200);border-radius:6px;
+  cursor:pointer;font-size:0.82rem;font-weight:500;transition:all 0.15s;user-select:none;
+}
+.day-check:has(input:checked), .day-check.checked {
+  background:var(--teal);border-color:var(--teal);color:white;
+}
+.day-check input { display:none; }
+</style>
+
+<script src="/static/js/app.js"></script>
+</body>
+</html>
